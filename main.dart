@@ -1,56 +1,246 @@
-
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main() {
-//task 1 for printing Hello I'm "ZagEng"
-  print('Hello I\'m "ZagEng"');
+  runApp(MyApp());
+}
 
-//task 2 for calculate formula
-  double distance = 25;
-  double speed = 40;
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-  //calculate time in hours
-  double timeInHours = distance / speed;
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Weather App',
+      theme: ThemeData(fontFamily: 'Roboto'),
+      home: WeatherScreen(),
+    );
+  }
+}
 
-  //calculate time in minutes , seconds and hours
-  int hours = timeInHours.toInt();
-  int minutes = ((timeInHours - hours) * 60).toInt();
-  int seconds = ((timeInHours * 3600) % 60).toInt();
+class WeatherScreen extends StatefulWidget {
+  const WeatherScreen({super.key});
 
-  // print result
-  print('Time taken: $hours hours, $minutes minutes, $seconds seconds');
+  @override
+  // ignore: library_private_types_in_public_api
+  _WeatherScreenState createState() => _WeatherScreenState();
+}
 
-  //task 3 for counting from 10:0 
-  int x = 10;
+class _WeatherScreenState extends State<WeatherScreen> {
+  final TextEditingController _cityController = TextEditingController();
+  final String _apiKey = "161d941566524791ba913755251903";
+  Map<String, dynamic>? _weatherData;
+  List<dynamic>? _forecastData;
+  bool _isLoading = false;
 
-  print(x); // 10
-  x -= 1;
+  Future<void> fetchWeather(String city) async {
+    setState(() {
+      _isLoading = true;
+    });
 
-  print(x); // 9
-  x -= 1;
+    final weatherUrl =
+        "https://api.weatherapi.com/v1/current.json?key=$_apiKey&q=$city";
+    final forecastUrl =
+        "https://api.weatherapi.com/v1/forecast.json?key=$_apiKey&q=$city&days=3";
 
-  print(x); // 8
-  x -= 1;
+    try {
+      final weatherResponse = await http.get(Uri.parse(weatherUrl));
+      final forecastResponse = await http.get(Uri.parse(forecastUrl));
 
-  print(x); // 7
-  x -= 1;
+      if (weatherResponse.statusCode == 200 &&
+          forecastResponse.statusCode == 200) {
+        setState(() {
+          _weatherData = json.decode(weatherResponse.body);
+          _forecastData =
+              json.decode(forecastResponse.body)['forecast']['forecastday'];
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _weatherData = null;
+          _forecastData = null;
+          _isLoading = false;
+        });
+      }
+    } catch (error) {
+      setState(() {
+        _weatherData = null;
+        _forecastData = null;
+        _isLoading = false;
+      });
+    }
+  }
 
-  print(x); // 6
-  x -= 1;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Color(0xFFFFA957),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                "Weather",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 20),
 
-  print(x); // 5
-  x -= 1;
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 15),
+                decoration: BoxDecoration(
+                  // ignore: deprecated_member_use
+                  color: Colors.white.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _cityController,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 18),
+                        decoration: InputDecoration(
+                          hintText: "Search here ...",
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: 15),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.search, color: Colors.black54, size: 28),
+                      onPressed: () {
+                        fetchWeather(_cityController.text);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 40),
+              _isLoading
+                  ? CircularProgressIndicator(color: Colors.white)
+                  : _weatherData != null
+                  ? WeatherInfo(
+                    weatherData: _weatherData!,
+                    forecastData: _forecastData!,
+                  )
+                  : Text(
+                    "Enter a city to get weather data.",
+                    style: TextStyle(fontSize: 20, color: Colors.white),
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-  print(x); // 4
-  x -= 1;
+class WeatherInfo extends StatelessWidget {
+  final Map<String, dynamic> weatherData;
+  final List<dynamic> forecastData;
 
-  print(x); // 3
-  x -= 1;
+  const WeatherInfo({
+    super.key,
+    required this.weatherData,
+    required this.forecastData,
+  });
 
-  print(x); // 2
-  x -= 1;
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          weatherData['location']['name'],
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        SizedBox(height: 5),
+        Text(
+          weatherData['location']['country'],
+          style: TextStyle(fontSize: 18, color: Colors.white70),
+        ),
+        SizedBox(height: 20),
+        Text(
+          weatherData['current']['condition']['text'],
+          style: TextStyle(fontSize: 22, color: Colors.white),
+        ),
+        SizedBox(height: 10),
+        Text(
+          "${weatherData['current']['temp_c']}°C",
+          style: TextStyle(
+            fontSize: 60,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        SizedBox(height: 10),
+        Icon(Icons.wb_sunny, size: 80, color: Colors.white),
+        SizedBox(height: 30),
 
-  print(x); // 1
-  x -= 1;
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children:
+              forecastData.map((day) {
+                return WeatherCard(
+                  day: day['date'].split('-').last, // رقم اليوم
+                  condition: day['day']['condition']['text'],
+                  temp: day['day']['avgtemp_c'].toString(),
+                );
+              }).toList(),
+        ),
+      ],
+    );
+  }
+}
 
-  print(x); // 0
+class WeatherCard extends StatelessWidget {
+  final String day;
+  final String condition;
+  final String temp;
+
+  const WeatherCard({
+    super.key,
+    required this.day,
+    required this.condition,
+    required this.temp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 100,
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        // ignore: deprecated_member_use
+        color: Colors.white.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          Text(
+            day,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 5),
+          Icon(Icons.wb_sunny, size: 30, color: Colors.black54),
+          SizedBox(height: 5),
+          Text(
+            "$temp°C",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
 }
